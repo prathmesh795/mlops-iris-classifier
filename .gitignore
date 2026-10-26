@@ -29,3 +29,8 @@ confusion_matrix_*.png
 
 # Python virtual environment
 .venv-mlflow/
+
+# Test reports
+.coverage
+coverage.xml
+test-results.xml
