@@ -1,47 +1,46 @@
-import os
+# src/compare_tuning_results.py
+"""
+Pulls all three tracked runs (baseline, grid search, random search)
+from MLflow and prints a consolidated comparison table.
+"""
+
 import mlflow
-import mlflow.sklearn
+from mlflow.tracking import MlflowClient
 
+mlflow.set_tracking_uri("sqlite:///mlflow.db")
 
-# ---------------------------------------------------------
-# 1. Configure MLflow tracking URI
-# ---------------------------------------------------------
+client = MlflowClient()
+experiment = client.get_experiment_by_name("iris-hyperparameter-tuning")
+runs = client.search_runs(experiment_ids=[experiment.experiment_id])
 
-mlflow.set_tracking_uri(
-    os.getenv(
-        "MLFLOW_TRACKING_URI",
-        "http://127.0.0.1:5000"
-    )
+print(
+    f"{'Run Name':<28}"
+    f"{'CV f1_macro':<15}"
+    f"{'Test Accuracy':<15}"
+    f"{'Total Fits':<12}"
 )
+print("-" * 70)
 
+for run in sorted(
+    runs,
+    key=lambda r: r.data.tags.get("mlflow.runName", ""),
+):
+    name = run.data.tags.get("mlflow.runName", "unknown")
 
-# ---------------------------------------------------------
-# 2. Define registered model URI
-# ---------------------------------------------------------
+    cv_score = run.data.metrics.get(
+        "cv_f1_macro_mean",
+        run.data.metrics.get("best_cv_f1_macro", 0),
+    )
+    test_acc = run.data.metrics.get("test_accuracy", 0)
+    n_iter = run.data.params.get("total_combinations") or run.data.params.get(
+        "n_iter"
+    ) or "1"
 
-MODEL_URI = "models:/iris-classifier-prod/Staging"
+    total_fits = int(n_iter) * 5 if name != "baseline_decision_tree" else 5
 
-print("=" * 60)
-print("LOADING REGISTERED MODEL")
-print("=" * 60)
-
-print("Model URI:", MODEL_URI)
-
-
-# ---------------------------------------------------------
-# 3. Load model from Model Registry
-# ---------------------------------------------------------
-
-model = mlflow.sklearn.load_model(MODEL_URI)
-
-
-print("\nModel loaded successfully!")
-print("Model type:", type(model))
-
-
-# ---------------------------------------------------------
-# 4. Display model
-# ---------------------------------------------------------
-
-print("\nLoaded Model:")
-print(model)
+    print(
+        f"{name:<28}"
+        f"{cv_score:<15.4f}"
+        f"{test_acc:<15.4f}"
+        f"{total_fits:<12}"
+    )

@@ -1,5 +1,6 @@
-import pandas as pd
 import numpy as np
+import pandas as pd
+
 
 df = pd.read_csv("data/raw/iris_v1.csv")
 
@@ -7,7 +8,6 @@ rng = np.random.default_rng(42)
 noise = rng.normal(0, 0.05, size=(20, 4))
 
 sample = df.sample(20, random_state=42).reset_index(drop=True)
-
 sample.iloc[:, :4] = sample.iloc[:, :4].values + noise
 
 augmented = pd.concat([df, sample], ignore_index=True)
