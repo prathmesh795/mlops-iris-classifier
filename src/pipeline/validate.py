@@ -1,14 +1,11 @@
-
-# src/pipeline/validate.py
+# src/pipeline/preprocess.py
 """
-Stage 4: Data Validation.
-Schema and statistical checks that must pass before data can
-flow downstream to training. Raises on failure to hard-stop the pipeline.
+Stage 2: Data Preprocessing.
+Handles missing values, duplicate removal, and type correction.
 """
 
 import argparse
 import logging
-import sys
 
 import pandas as pd
 
@@ -16,97 +13,50 @@ logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(message)s",
 )
-logger = logging.getLogger("validate")
+logger = logging.getLogger("preprocess")
 
-EXPECTED_COLUMNS = {
+NUMERIC_COLS = [
     "sepal length (cm)",
     "sepal width (cm)",
     "petal length (cm)",
     "petal width (cm)",
-    "species",
-    "sepal_area",
-    "petal_area",
-    "sepal_to_petal_length_ratio",
-    "petal_length_bin",
-}
-
-VALID_SPECIES = {"setosa", "versicolor", "virginica"}
-
-RANGE_CHECKS = {
-    "sepal length (cm)": (3.0, 9.0),
-    "sepal width (cm)": (1.5, 5.5),
-    "petal length (cm)": (0.5, 8.0),
-    "petal width (cm)": (0.05, 3.0),
-}
+]
 
 
-class DataValidationError(Exception):
-    """Raised when input data fails validation."""
-    pass
-
-
-def validate(input_path: str) -> pd.DataFrame:
-    """Validate the input CSV and return it if all checks pass."""
+def preprocess(input_path: str, output_path: str) -> pd.DataFrame:
     df = pd.read_csv(input_path)
-    errors = []
+    initial_rows = len(df)
 
-    # 1. Check for missing required columns.
-    missing_cols = EXPECTED_COLUMNS - set(df.columns)
-    if missing_cols:
-        errors.append(f"Missing expected columns: {missing_cols}")
+    # Drop exact duplicate records
+    df = df.drop_duplicates()
+    logger.info("Dropped %d duplicate rows", initial_rows - len(df))
 
-    # 2. Check for unexpected null values.
-    if df.isnull().any().any():
-        null_cols = df.columns[df.isnull().any()].tolist()
-        errors.append(f"Unexpected null values in columns: {null_cols}")
-
-    # 3. Check species values only when the column exists.
-    if "species" in df.columns:
-        invalid_species = set(df["species"].unique()) - VALID_SPECIES
-        if invalid_species:
-            errors.append(
-                f"Unexpected species values: {invalid_species}"
+    # Convert to numbers and fill missing values with the median
+    for col in NUMERIC_COLS:
+        df[col] = pd.to_numeric(df[col], errors="coerce")
+        n_missing = df[col].isna().sum()
+        if n_missing > 0:
+            median_val = df[col].median()
+            df[col] = df[col].fillna(median_val)
+            logger.info(
+                "Imputed %d missing values in '%s' with median=%.3f",
+                n_missing,
+                col,
+                median_val,
             )
 
-    # 4. Check numeric ranges only when each column exists.
-    for col, (low, high) in RANGE_CHECKS.items():
-        if col not in df.columns:
-            continue
+    # Drop rows with unresolvable missing target
+    df = df.dropna(subset=["species"])
 
-        out_of_range = df[(df[col] < low) | (df[col] > high)]
-
-        if not out_of_range.empty:
-            errors.append(
-                f"{len(out_of_range)} rows out of expected range "
-                f"for '{col}' ({low}-{high})"
-            )
-
-    # 5. Raise an exception containing the detailed errors.
-    if errors:
-        raise DataValidationError(
-            f"Validation failed with {len(errors)} error(s): "
-            + "; ".join(errors)
-        )
-
-    logger.info(
-        "Validation PASSED: %d rows, %d columns, all checks satisfied",
-        len(df),
-        df.shape[1],
-    )
-
+    df.drop(columns=["collected_at"], inplace=True, errors="ignore")
+    df.to_csv(output_path, index=False)
+    logger.info("Preprocessed %d rows -> %s", len(df), output_path)
     return df
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "--input",
-        default="data/processed/iris_features.csv",
-    )
+    parser.add_argument("--input", default="data/raw/iris_raw.csv")
+    parser.add_argument("--output", default="data/processed/iris_preprocessed.csv")
     args = parser.parse_args()
-
-    try:
-        validate(args.input)
-    except DataValidationError as e:
-        logger.error("Pipeline halted: %s", e)
-        sys.exit(1)
+    preprocess(args.input, args.output)

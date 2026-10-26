@@ -4,10 +4,8 @@ Stage 1: Data Collection.
 Simulates ingesting raw data from an external source and writing
 it to the raw data zone, with basic collection-time metadata logging.
 """
-# Parses command-line arguments.
-import argparse
 
-# Logs progress and status information for the collection stage.
+import argparse
 import logging
 from datetime import datetime, timezone
 
@@ -23,14 +21,11 @@ logger = logging.getLogger("collect")
 
 def collect_data(output_path: str) -> pd.DataFrame:
     iris = load_iris(as_frame=True)
-    # convert dataset into pandas dataframe and rename target to species
     df = iris.frame.rename(columns={"target": "species"})
-    # converts 0 → setosa, 1 → versicolor, 2 → virginica
     df["species"] = df["species"].map(dict(enumerate(iris.target_names)))
-    # adds a timestamp showing when the data was collected.
     df["collected_at"] = datetime.now(timezone.utc).isoformat()
 
-    df.to_csv(output_path, index=False)  # saves the DataFrame as a CSV file. data/raw/iris_raw.csv
+    df.to_csv(output_path, index=False)
     logger.info("Collected %d rows -> %s", len(df), output_path)
     return df
 
