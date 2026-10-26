@@ -1,4 +1,3 @@
-
 # src/pipeline/validate.py
 """
 Stage 4: Data Validation.
@@ -42,7 +41,6 @@ RANGE_CHECKS = {
 
 class DataValidationError(Exception):
     """Raised when input data fails validation."""
-    pass
 
 
 def validate(input_path: str) -> pd.DataFrame:
@@ -64,9 +62,7 @@ def validate(input_path: str) -> pd.DataFrame:
     if "species" in df.columns:
         invalid_species = set(df["species"].unique()) - VALID_SPECIES
         if invalid_species:
-            errors.append(
-                f"Unexpected species values: {invalid_species}"
-            )
+            errors.append(f"Unexpected species values: {invalid_species}")
 
     # 4. Check numeric ranges only when each column exists.
     for col, (low, high) in RANGE_CHECKS.items():
@@ -74,7 +70,6 @@ def validate(input_path: str) -> pd.DataFrame:
             continue
 
         out_of_range = df[(df[col] < low) | (df[col] > high)]
-
         if not out_of_range.empty:
             errors.append(
                 f"{len(out_of_range)} rows out of expected range "

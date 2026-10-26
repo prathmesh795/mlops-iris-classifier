@@ -3,18 +3,25 @@
 Stage 2: Data Preprocessing.
 Handles missing values, duplicate removal, and type correction.
 """
+
 import argparse
 import logging
 
 import pandas as pd
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(message)s",
+)
 logger = logging.getLogger("preprocess")
 
 NUMERIC_COLS = [
-    "sepal length (cm)", "sepal width (cm)",
-    "petal length (cm)", "petal width (cm)",
+    "sepal length (cm)",
+    "sepal width (cm)",
+    "petal length (cm)",
+    "petal width (cm)",
 ]
+
 
 def preprocess(input_path: str, output_path: str) -> pd.DataFrame:
     df = pd.read_csv(input_path)
@@ -31,7 +38,12 @@ def preprocess(input_path: str, output_path: str) -> pd.DataFrame:
         if n_missing > 0:
             median_val = df[col].median()
             df[col] = df[col].fillna(median_val)
-            logger.info("Imputed %d missing values in '%s' with median=%.3f", n_missing, col, median_val)
+            logger.info(
+                "Imputed %d missing values in '%s' with median=%.3f",
+                n_missing,
+                col,
+                median_val,
+            )
 
     # Drop rows with unresolvable missing target
     df = df.dropna(subset=["species"])
@@ -45,6 +57,9 @@ def preprocess(input_path: str, output_path: str) -> pd.DataFrame:
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--input", default="data/raw/iris_raw.csv")
-    parser.add_argument("--output", default="data/processed/iris_preprocessed.csv")
+    parser.add_argument(
+        "--output",
+        default="data/processed/iris_preprocessed.csv",
+    )
     args = parser.parse_args()
     preprocess(args.input, args.output)
